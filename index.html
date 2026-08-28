@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Lexico Quiz - Ngu phap & Tu vung tien to tieng Duc</title>
+<style>
+  :root {
+    --green: #58cc02;
+    --green-dark: #46a302;
+    --red: #ff4b4b;
+    --red-dark: #d63b3b;
+    --blue: #1cb0f6;
+    --blue-dark: #1899d6;
+    --purple: #ce82ff;
+    --purple-dark: #a568cc;
+    --gray-bg: #f7f7f7;
+    --gray-border: #e5e5e5;
+    --text: #3c3c3c;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+  body {
+    margin: 0;
+    font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    background: var(--gray-bg);
+    color: var(--text);
+    display: flex;
+    justify-content: center;
+    padding: 12px 8px 32px;
+    font-size: 15px;
+  }
+  .app { width: 100%; max-width: 480px; }
+
+  .center-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 60vh;
+    text-align: center;
+    padding: 20px;
+    gap: 12px;
+  }
+  .spinner {
+    width: 36px; height: 36px;
+    border: 4px solid var(--gray-border);
+    border-top-color: var(--green);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .retry-btn {
+    padding: 12px 24px;
+    font-size: 14px;
+    font-weight: 800;
+    border-radius: 12px;
+    border: none;
+    border-bottom: 4px solid var(--blue-dark);
+    background: var(--blue);
+    color: white;
+    cursor: pointer;
+    font-family: inherit;
+  }
+
+  .topbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .progress-bar {
+    flex: 1;
+    height: 12px;
+    background: var(--gray-border);
+    border-radius: 999px;
+    overflow: hidden;
+    min-width: 0;
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--green);
+    border-radius: 999px;
+    transition: width 0.3s ease;
+    width: 0%;
+  }
+  .score { font-weight: 800; color: var(--green-dark); white-space: nowrap; font-size: 13px; }
+  .errors { font-weight: 800; color: var(--red); white-space: nowrap; font-size: 13px; }
+
+  .subbar {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 12px;
+    font-size: 11px;
+    color: #999;
+    font-weight: 700;
+  }
+  .mastered-badge { color: var(--purple-dark); }
+  .wronglist-btn {
+    border: none;
+    border-radius: 999px;
+    padding: 5px 10px;
+    font-size: 11px;
+    font-weight: 800;
+    cursor: pointer;
+    font-family: inherit;
+    white-space: nowrap;
+    background: #ffdfe0;
+    color: var(--red-dark);
+  }
+  .wronglist-btn:active { transform: translateY(1px); }
+
+  .card {
+    background: white;
+    border-radius: 14px;
+    padding: 18px 14px;
+    box-shadow: 0 2px 0 var(--gray-border);
+    border: 2px solid var(--gray-border);
+  }
+  .grammar-tag {
+    display: inline-block;
+    background: #eef4ff;
+    color: var(--blue-dark);
+    font-size: 10px;
+    font-weight: 800;
+    padding: 3px 8px;
+    border-radius: 999px;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+  }
+  .qnum {
+    font-size: 11px;
+    color: #999;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+  }
+  .question {
+    font-size: clamp(16px, 4.6vw, 19px);
+    font-weight: 700;
+    line-height: 1.4;
+    margin-bottom: 8px;
+    overflow-wrap: break-word;
+    word-break: break-word;
+  }
+
+  .translate-toggle {
+    background: none;
+    border: none;
+    color: var(--blue);
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    padding: 0 0 12px 0;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-family: inherit;
+  }
+  .translate-toggle .arrow { transition: transform 0.15s ease; display: inline-block; }
+  .translate-toggle.open .arrow { transform: rotate(180deg); }
+  .translation-box {
+    display: none;
+    background: #f0faff;
+    border: 2px solid var(--blue);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 13px;
+    color: var(--text);
+    margin-bottom: 12px;
+    overflow-wrap: break-word;
+  }
+  .translation-box.show { display: block; }
+
+  .options { display: flex; flex-direction: column; gap: 9px; }
+  .option-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    text-align: left;
+    padding: 11px 12px;
+    font-size: 15px;
+    font-weight: 600;
+    border-radius: 12px;
+    border: 2px solid var(--gray-border);
+    border-bottom-width: 4px;
+    background: white;
+    color: var(--text);
+    cursor: pointer;
+    transition: transform 0.05s ease, background 0.15s ease, border-color 0.15s ease;
+    font-family: inherit;
+    overflow-wrap: break-word;
+    min-width: 0;
+  }
+  .option-btn span:last-child { min-width: 0; overflow-wrap: break-word; }
+  .option-btn .letter {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    border: 2px solid var(--gray-border);
+    font-size: 11px;
+    font-weight: 800;
+    color: #999;
+    flex-shrink: 0;
+  }
+  .option-btn:active:not(:disabled) { transform: translateY(1px); border-bottom-width: 2px; }
+  .option-btn:disabled { cursor: default; }
+  .option-btn.correct { background: #d7ffb8; border-color: var(--green); color: var(--green-dark); }
+  .option-btn.correct .letter { background: var(--green); border-color: var(--green); color: white; }
+  .option-btn.wrong { background: #ffdfe0; border-color: var(--red); color: var(--red-dark); }
+  .option-btn.wrong .letter { background: var(--red); border-color: var(--red); color: white; }
+  .option-btn.dim { opacity: 0.5; }
+
+  .feedback {
+    margin-top: 14px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    display: none;
+    animation: slideUp 0.2s ease;
+    font-size: 13px;
+  }
+  @keyframes slideUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+  .feedback.show { display: block; }
+  .feedback.correct-fb { background: #d7ffb8; border: 2px solid var(--green); }
+  .feedback.wrong-fb { background: #ffdfe0; border: 2px solid var(--red); }
+  .feedback-title { font-weight: 800; font-size: 14px; margin-bottom: 5px; }
+  .correct-fb .feedback-title { color: var(--green-dark); }
+  .wrong-fb .feedback-title { color: var(--red-dark); }
+  .feedback-line { margin-top: 3px; overflow-wrap: break-word; }
+
+  .nav-row { display: flex; gap: 8px; margin-top: 16px; }
+  .back-btn {
+    flex: 0 0 auto;
+    padding: 13px 14px;
+    font-size: 13px;
+    font-weight: 800;
+    border-radius: 12px;
+    border: 2px solid var(--gray-border);
+    border-bottom-width: 4px;
+    background: white;
+    color: #777;
+    cursor: pointer;
+    font-family: inherit;
+    display: none;
+  }
+  .back-btn.show { display: block; }
+  .back-btn:active { transform: translateY(1px); border-bottom-width: 2px; }
+  .continue-btn {
+    flex: 1;
+    padding: 13px;
+    font-size: 14px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    border-radius: 12px;
+    border: none;
+    border-bottom: 4px solid var(--green-dark);
+    background: var(--green);
+    color: white;
+    cursor: pointer;
+    display: none;
+    font-family: inherit;
+    min-width: 0;
+  }
+  .continue-btn.show { display: block; }
+  .continue-btn:active { transform: translateY(1px); border-bottom-width: 2px; }
+
+  .wronglist-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+  .wronglist-header h2 { font-size: 15px; margin: 0; flex: 1; min-width: 0; }
+  .small-btn {
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 800;
+    border-radius: 10px;
+    border: 2px solid var(--gray-border);
+    border-bottom-width: 3px;
+    background: white;
+    color: #555;
+    cursor: pointer;
+    font-family: inherit;
+    white-space: nowrap;
+  }
+  .small-btn:active { transform: translateY(1px); border-bottom-width: 1px; }
+  .wrong-list-item {
+    background: white;
+    border: 2px solid var(--gray-border);
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .wrong-list-item:active { background: #f7f7f7; }
+  .wrong-list-item .q-text { color: var(--text); font-weight: 600; margin-bottom: 3px; overflow-wrap: break-word; }
+  .wrong-list-item .ans-text { color: var(--green-dark); font-weight: 700; }
+  .wrong-list-item .meaning-text { color: #999; font-weight: 400; }
+  .empty-state { text-align: center; color: #999; padding: 40px 16px; font-size: 14px; }
+
+  .result-screen { display: none; text-align: center; padding: 24px 8px; }
+  .result-screen.show { display: block; }
+  .result-emoji { font-size: 52px; margin-bottom: 8px; }
+  .result-title { font-size: 20px; font-weight: 800; margin-bottom: 6px; }
+  .result-stats { display: flex; justify-content: center; gap: 10px; margin: 18px 0; flex-wrap: wrap; }
+  .stat-box { background: white; border: 2px solid var(--gray-border); border-radius: 12px; padding: 10px 16px; }
+  .stat-num { font-size: 22px; font-weight: 800; }
+  .stat-label { font-size: 10px; color: #999; font-weight: 700; text-transform: uppercase; }
+  .stat-box.correct-stat .stat-num { color: var(--green-dark); }
+  .stat-box.wrong-stat .stat-num { color: var(--red); }
+  .stat-box.mastered-stat .stat-num { color: var(--purple-dark); }
+
+  .result-buttons { display: flex; flex-direction: column; gap: 10px; align-items: center; }
+  .restart-btn, .retry-wrong-btn {
+    padding: 14px 24px;
+    font-size: 14px;
+    font-weight: 800;
+    text-transform: uppercase;
+    border-radius: 12px;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    width: 100%;
+    max-width: 320px;
+  }
+  .restart-btn { border-bottom: 4px solid var(--blue-dark); background: var(--blue); color: white; }
+  .retry-wrong-btn { border-bottom: 4px solid var(--red-dark); background: var(--red); color: white; }
+  .retry-wrong-btn:disabled { background: #ccc; border-bottom-color: #999; cursor: not-allowed; }
+  .restart-btn:active, .retry-wrong-btn:active:not(:disabled) { transform: translateY(1px); border-bottom-width: 2px; }
+  .reset-all-link {
+    margin-top: 16px;
+    font-size: 12px;
+    color: #bbb;
+    text-decoration: underline;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+  }
+
+  @media (max-width: 380px) {
+    body { padding: 8px 6px 24px; font-size: 14px; }
+    .card { padding: 14px 10px; }
+    .option-btn { padding: 10px; font-size: 14px; }
+  }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <div class="center-screen" id="loadingScreen">
+    <div class="spinner"></div>
+    <div>Đang tải dữ liệu câu hỏi từ Google Sheet...</div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script>
+const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSA8JAR7sXXv9YS1YcspcI7xwPs7Lnrd5OZgN2vmPNuRpfltnQpxqBvRNpdN-UJmVYGg1nSTux7OvrX/pub?output=csv";
+const STORAGE_KEY = "germanQuizState_v1";
+
+const appEl = document.getElementById('app');
+
+let allItems = [];
+let itemsById = {};
+
+let order = [];
+let currentIndex = 0;
+let correctCount = 0;
+let wrongCount = 0;
+let answeredState = [];
+let masteredIds = new Set();
+let wrongPoolIds = new Set();
+
+let reviewOrder = [];
+let reviewIndex = 0;
+let reviewAnsweredState = [];
+
+let screen = 'loading';
+let lastError = null;
+
+function shuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function loadData() {
+  screen = 'loading';
+  render();
+  fetch(SHEET_CSV_URL)
+    .then(res => {
+      if (!res.ok) throw new Error('Network response was not ok');
+      return res.text();
+    })
+    .then(csvText => {
+      const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+      allItems = parsed.data.map(row => {
+        const opts = [row.optionA, row.optionB, row.optionC, row.optionD]
+          .map(o => (o || '').trim())
+          .filter(o => o.length > 0);
+        return {
+          id: row.id,
+          grammarType: row.grammarType || '',
+          group: row.group || '',
+          sentence: row.sentence || '',
+          options: opts,
+          correct: (row.correct || '').trim(),
+          meaning: row.meaning || '',
+          translation: row.translation || '',
+          synonym: row.synonym || '',
+          antonym: row.antonym || '',
+        };
+      }).filter(it => it.id && it.sentence && it.options.length >= 2 && it.correct);
+
+      itemsById = {};
+      allItems.forEach(it => { itemsById[it.id] = it; });
+
+      if (allItems.length === 0) throw new Error('Không có dữ liệu hợp lệ');
+
+      initSessionFromStorageOrNew();
+      screen = 'quiz';
+      render();
+    })
+    .catch(err => {
+      console.error(err);
+      lastError = err && err.message ? err.message : String(err);
+      screen = 'error';
+      render();
+    });
+}
+
+function saveState() {
+  try {
+    const state = {
+      order, currentIndex, correctCount, wrongCount, answeredState,
+      masteredIds: Array.from(masteredIds),
+      wrongPoolIds: Array.from(wrongPoolIds),
+      updatedAt: Date.now(),
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (e) { console.warn('Could not save state', e); }
+}
+
+function initSessionFromStorageOrNew() {
+  let saved = null;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) saved = JSON.parse(raw);
+  } catch (e) { saved = null; }
+
+  const validSavedOrder = saved && Array.isArray(saved.order) &&
+    saved.order.length > 0 && saved.order.every(id => itemsById[id]);
+
+  if (validSavedOrder) {
+    order = saved.order;
+    currentIndex = Math.min(saved.currentIndex || 0, order.length - 1);
+    correctCount = saved.correctCount || 0;
+    wrongCount = saved.wrongCount || 0;
+    answeredState = saved.answeredState || new Array(order.length).fill(null);
+    masteredIds = new Set((saved.masteredIds || []).filter(id => itemsById[id]));
+    wrongPoolIds = new Set((saved.wrongPoolIds || []).filter(id => itemsById[id]));
+  } else {
+    startNewMainSession(false);
+  }
+}
+
+function startNewMainSession(resetKnowledge) {
+  order = shuffle(allItems.map(it => it.id));
+  currentIndex = 0;
+  correctCount = 0;
+  wrongCount = 0;
+  answeredState = new Array(order.length).fill(null);
+  if (resetKnowledge) {
+    masteredIds = new Set();
+    wrongPoolIds = new Set();
+  }
+  saveState();
+}
+
+function resetEverything() {
+  if (!confirm('Xoá toàn bộ tiến trình đã lưu (điểm, câu đã thuộc, câu sai) và bắt đầu lại từ đầu?')) return;
+  localStorage.removeItem(STORAGE_KEY);
+  startNewMainSession(true);
+  screen = 'quiz';
+  render();
+}
+
+function openWrongList() {
+  screen = 'wronglist';
+  render();
+}
+
+function startReviewFromWrongList(startId) {
+  reviewOrder = Array.from(wrongPoolIds);
+  reviewOrder = [startId, ...reviewOrder.filter(id => id !== startId)];
+  reviewIndex = 0;
+  reviewAnsweredState = new Array(reviewOrder.length).fill(null);
+  screen = 'wrongreview';
+  render();
+}
+
+function backToMainQuiz() {
+  screen = 'quiz';
+  render();
+}
+
+function render() {
+  if (screen === 'loading') return renderLoading();
+  if (screen === 'error') return renderError();
+  if (screen === 'quiz') return renderQuiz();
+  if (screen === 'wronglist') return renderWrongList();
+  if (screen === 'wrongreview') return renderWrongReview();
+  if (screen === 'result') return renderResult();
+}
+
+function renderLoading() {
+  appEl.innerHTML = `
+    <div class="center-screen">
+      <div class="spinner"></div>
+      <div>Đang tải dữ liệu câu hỏi từ Google Sheet...</div>
+    </div>`;
+}
+
+function renderError() {
+  const isFileProtocol = window.location.protocol === 'file:';
+  appEl.innerHTML = `
+    <div class="center-screen">
+      <div style="font-size:40px;">⚠️</div>
+      <div>Không tải được dữ liệu từ Google Sheet.</div>
+      ${isFileProtocol ? `
+        <div style="font-size:12px;color:#c00;background:#fff0f0;padding:10px;border-radius:8px;text-align:left;">
+          Bạn đang mở file trực tiếp (file://) — trình duyệt thường chặn fetch() trong trường hợp này (lỗi CORS).<br><br>
+          <b>Cách sửa:</b> chạy <code>python -m http.server 8000</code> trong thư mục chứa file rồi mở <code>http://localhost:8000/...</code>, hoặc host file lên Netlify/GitHub Pages.
+        </div>` : `<div>Kiểm tra kết nối mạng hoặc link Google Sheet rồi thử lại.</div>`}
+      <div style="font-size:11px;color:#999;">Chi tiết lỗi: ${escapeHtml(String(lastError || 'unknown'))}</div>
+      <button class="retry-btn" onclick="loadData()">Thử lại</button>
+    </div>`;
+}
+
+function topbarHtml() {
+  const total = order.length;
+  const pct = total ? (currentIndex / total) * 100 : 0;
+  return `
+    <div class="topbar">
+      <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+      <div class="score">✓ ${correctCount}</div>
+      <div class="errors">✗ ${wrongCount}</div>
+    </div>
+    <div class="subbar">
+      <span class="mastered-badge">Đã thuộc: ${masteredIds.size}/${allItems.length}</span>
+      ${wrongPoolIds.size > 0 ? `<button class="wronglist-btn" onclick="openWrongList()">📋 Câu sai (${wrongPoolIds.size})</button>` : ''}
+    </div>`;
+}
+
+function optionsHtml(item, state, onClickFnName, idx) {
+  const letters = ['A', 'B', 'C', 'D'];
+  return item.options.map((opt, i) => {
+    let cls = 'option-btn';
+    let disabled = '';
+    if (state) {
+      disabled = 'disabled';
+      if (opt === item.correct) cls += ' correct';
+      else if (i === state.selectedIndex && opt !== item.correct) cls += ' wrong';
+      else cls += ' dim';
+    }
+    const onclick = state ? '' : `onclick="${onClickFnName}(${idx}, ${i})"`;
+    return `<button class="${cls}" ${disabled} ${onclick}>
+      <span class="letter">${letters[i]}</span><span>${escapeHtml(opt)}</span>
+    </button>`;
+  }).join('');
+}
+
+function feedbackHtml(item, isCorrect) {
+  let html = `<div class="feedback show ${isCorrect ? 'correct-fb' : 'wrong-fb'}">`;
+  html += `<div class="feedback-title">${isCorrect ? 'Chính xác! 🎉' : 'Sai rồi. Đáp án đúng: ' + escapeHtml(item.correct)}</div>`;
+  if (item.meaning) html += `<div class="feedback-line"><b>Nghĩa:</b> ${escapeHtml(item.meaning)}</div>`;
+  if (item.synonym) html += `<div class="feedback-line"><b>Đồng nghĩa:</b> ${escapeHtml(item.synonym)}</div>`;
+  if (item.antonym) html += `<div class="feedback-line"><b>Trái nghĩa:</b> ${escapeHtml(item.antonym)}</div>`;
+  html += `</div>`;
+  return html;
+}
+
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function renderQuiz() {
+  const id = order[currentIndex];
+  const item = itemsById[id];
+  const state = answeredState[currentIndex];
+  const isLast = currentIndex === order.length - 1;
+
+  appEl.innerHTML = `
+    ${topbarHtml()}
+    <div class="card">
+      ${item.grammarType ? `<span class="grammar-tag">${escapeHtml(item.grammarType)}</span>` : ''}
+      <div class="qnum">Câu ${currentIndex + 1} / ${order.length}</div>
+      <div class="question">${escapeHtml(item.sentence)}</div>
+      ${item.translation ? `
+        <button class="translate-toggle" id="translateToggle" onclick="toggleTranslation()">
+          <span class="arrow">▾</span> Xem nghĩa câu
+        </button>
+        <div class="translation-box" id="translationBox">${escapeHtml(item.translation)}</div>
+      ` : ''}
+      <div class="options">${optionsHtml(item, state, 'selectMainOption', currentIndex)}</div>
+      ${state ? feedbackHtml(item, state.isCorrect) : ''}
+      <div class="nav-row">
+        <button class="back-btn ${currentIndex > 0 ? 'show' : ''}" onclick="goBackMain()">← Câu trước</button>
+        <button class="continue-btn ${state ? 'show' : ''}" onclick="continueMain()">${isLast ? 'Xem kết quả' : 'Tiếp tục'}</button>
+      </div>
+    </div>`;
+}
+
+function toggleTranslation() {
+  document.getElementById('translationBox').classList.toggle('show');
+  document.getElementById('translateToggle').classList.toggle('open');
+}
+
+function selectMainOption(idx, optionIndex) {
+  if (answeredState[idx]) return;
+  const id = order[idx];
+  const item = itemsById[id];
+  const isCorrect = item.options[optionIndex] === item.correct;
+  answeredState[idx] = { selectedIndex: optionIndex, isCorrect };
+
+  if (isCorrect) {
+    correctCount++;
+    masteredIds.add(id);
+    wrongPoolIds.delete(id);
+  } else {
+    wrongCount++;
+    masteredIds.delete(id);
+    wrongPoolIds.add(id);
+  }
+  saveState();
+  renderQuiz();
+}
+
+function goBackMain() {
+  if (currentIndex > 0) {
+    currentIndex--;
+    saveState();
+    renderQuiz();
+  }
+}
+
+function continueMain() {
+  if (!answeredState[currentIndex]) return;
+  currentIndex++;
+  if (currentIndex >= order.length) {
+    screen = 'result';
+    saveState();
+    render();
+  } else {
+    saveState();
+    renderQuiz();
+  }
+}
+
+function renderWrongList() {
+  const ids = Array.from(wrongPoolIds);
+  let listHtml;
+  if (ids.length === 0) {
+    listHtml = `<div class="empty-state">🎉 Không còn câu nào sai!</div>`;
+  } else {
+    listHtml = ids.map(id => {
+      const item = itemsById[id];
+      return `<div class="wrong-list-item" onclick="startReviewFromWrongList('${id}')">
+        <div class="q-text">${escapeHtml(item.sentence)}</div>
+        <div class="ans-text">${escapeHtml(item.correct)}</div>
+        <div class="meaning-text">${escapeHtml(item.meaning || '')}</div>
+      </div>`;
+    }).join('');
+  }
+
+  appEl.innerHTML = `
+    <div class="wronglist-header">
+      <button class="small-btn" onclick="backToMainQuiz()">← Quay lại</button>
+      <h2>Câu đã sai (${ids.length})</h2>
+    </div>
+    ${listHtml}`;
+}
+
+function renderWrongReview() {
+  const id = reviewOrder[reviewIndex];
+  const item = itemsById[id];
+  const state = reviewAnsweredState[reviewIndex];
+  const isLast = reviewIndex === reviewOrder.length - 1;
+
+  appEl.innerHTML = `
+    <div class="wronglist-header">
+      <button class="small-btn" onclick="screen='wronglist'; render();">← Danh sách</button>
+      <h2 style="font-size:13px;">Ôn câu sai · ${reviewIndex + 1}/${reviewOrder.length}</h2>
+      <button class="small-btn" onclick="backToMainQuiz()">↩ Bài chính</button>
+    </div>
+    <div class="card">
+      ${item.grammarType ? `<span class="grammar-tag">${escapeHtml(item.grammarType)}</span>` : ''}
+      <div class="question">${escapeHtml(item.sentence)}</div>
+      ${item.translation ? `
+        <button class="translate-toggle" id="translateToggle" onclick="toggleTranslation()">
+          <span class="arrow">▾</span> Xem nghĩa câu
+        </button>
+        <div class="translation-box" id="translationBox">${escapeHtml(item.translation)}</div>
+      ` : ''}
+      <div class="options">${optionsHtml(item, state, 'selectReviewOption', reviewIndex)}</div>
+      ${state ? feedbackHtml(item, state.isCorrect) : ''}
+      <div class="nav-row">
+        <button class="back-btn ${reviewIndex > 0 ? 'show' : ''}" onclick="goBackReview()">← Câu trước</button>
+        <button class="continue-btn ${state ? 'show' : ''}" onclick="continueReview()">${isLast ? 'Xong, quay lại danh sách' : 'Câu tiếp theo'}</button>
+      </div>
+    </div>`;
+}
+
+function selectReviewOption(idx, optionIndex) {
+  if (reviewAnsweredState[idx]) return;
+  const id = reviewOrder[idx];
+  const item = itemsById[id];
+  const isCorrect = item.options[optionIndex] === item.correct;
+  reviewAnsweredState[idx] = { selectedIndex: optionIndex, isCorrect };
+
+  if (isCorrect) {
+    masteredIds.add(id);
+    wrongPoolIds.delete(id);
+  } else {
+    masteredIds.delete(id);
+    wrongPoolIds.add(id);
+  }
+  saveState();
+  renderWrongReview();
+}
+
+function goBackReview() {
+  if (reviewIndex > 0) {
+    reviewIndex--;
+    renderWrongReview();
+  }
+}
+
+function continueReview() {
+  if (!reviewAnsweredState[reviewIndex]) return;
+  if (reviewIndex >= reviewOrder.length - 1) {
+    screen = 'wronglist';
+    render();
+  } else {
+    reviewIndex++;
+    renderWrongReview();
+  }
+}
+
+function renderResult() {
+  const pct = order.length ? Math.round((correctCount / order.length) * 100) : 0;
+  let emoji = '💪', title = 'Cần luyện thêm!';
+  if (pct >= 90) { emoji = '🏆'; title = 'Xuất sắc!'; }
+  else if (pct >= 70) { emoji = '🎉'; title = 'Rất tốt!'; }
+  else if (pct >= 50) { emoji = '👍'; title = 'Khá ổn!'; }
+
+  const wrongN = wrongPoolIds.size;
+
+  appEl.innerHTML = `
+    <div class="result-screen show">
+      <div class="result-emoji">${emoji}</div>
+      <div class="result-title">${title}</div>
+      <div class="result-stats">
+        <div class="stat-box correct-stat"><div class="stat-num">${correctCount}</div><div class="stat-label">Đúng</div></div>
+        <div class="stat-box wrong-stat"><div class="stat-num">${wrongCount}</div><div class="stat-label">Sai</div></div>
+        <div class="stat-box mastered-stat"><div class="stat-num">${masteredIds.size}/${allItems.length}</div><div class="stat-label">Đã thuộc</div></div>
+      </div>
+      <div class="result-buttons">
+        <button class="retry-wrong-btn" ${wrongN === 0 ? 'disabled' : ''} onclick="openWrongList()">
+          ${wrongN === 0 ? 'Không có câu sai để ôn 🎉' : 'Ôn lại ' + wrongN + ' câu sai'}
+        </button>
+        <button class="restart-btn" onclick="startNewMainSession(false); screen='quiz'; render();">Làm lại toàn bộ ${allItems.length} câu</button>
+      </div>
+      <button class="reset-all-link" onclick="resetEverything()">Xoá toàn bộ tiến trình & bắt đầu lại từ đầu</button>
+    </div>`;
+}
+
+loadData();
+</script>
+</body>
+</html>
