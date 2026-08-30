@@ -611,6 +611,7 @@ function loadData() {
           options: opts,
           correct: (row.correct || '').trim(),
           infinitive: row.infinitive || '',
+          preteritum: row.preteritum || '',
           meaning: row.meaning || '',
           translation: row.translation || '',
           synonym: row.synonym || '',
@@ -862,6 +863,9 @@ function feedbackHtml(item, isCorrect) {
   html += `<div class="feedback-title">${isCorrect ? 'Chính xác! 🎉' : 'Sai rồi. Đáp án đúng: ' + escapeHtml(item.correct)}</div>`;
   if (item.infinitive && item.infinitive !== item.correct) {
     html += `<div class="feedback-line"><b>Nguyên thể:</b> ${escapeHtml(item.infinitive)}</div>`;
+  }
+  if (item.preteritum && item.grammarType !== 'Präteritum' && item.preteritum !== item.correct) {
+    html += `<div class="feedback-line"><b>Präteritum:</b> ${escapeHtml(item.preteritum)}</div>`;
   }
   if (item.meaning) html += `<div class="feedback-line"><b>Nghĩa:</b> ${escapeHtml(item.meaning)}</div>`;
   if (item.synonym) html += `<div class="feedback-line"><b>Đồng nghĩa:</b> ${escapeHtml(item.synonym)}</div>`;
