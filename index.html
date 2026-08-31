@@ -456,6 +456,8 @@ let wrongPoolIds = new Set();
 let reviewOrder = [];
 let reviewIndex = 0;
 let reviewAnsweredState = [];
+let reviewMode = 'wrongpool'; // 'wrongpool' | 'word'
+let mistakeCounts = {}; // word (infinitive) -> cumulative wrong-answer count, never decreases
 
 let screen = 'loading';
 let lastError = null;
@@ -642,6 +644,7 @@ function saveState() {
       order, currentIndex, correctCount, wrongCount, answeredState,
       masteredIds: Array.from(masteredIds),
       wrongPoolIds: Array.from(wrongPoolIds),
+      mistakeCounts,
       updatedAt: Date.now(),
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -666,6 +669,7 @@ function initSessionFromStorageOrNew() {
     answeredState = saved.answeredState || new Array(order.length).fill(null);
     masteredIds = new Set((saved.masteredIds || []).filter(id => itemsById[id]));
     wrongPoolIds = new Set((saved.wrongPoolIds || []).filter(id => itemsById[id]));
+    mistakeCounts = saved.mistakeCounts || {};
   } else {
     startNewMainSession(false);
   }
@@ -700,6 +704,7 @@ function openWrongList() {
 function startFullWrongReview() {
   const ids = shuffle(Array.from(wrongPoolIds));
   if (ids.length === 0) return;
+  reviewMode = 'wrongpool';
   reviewOrder = ids;
   reviewIndex = 0;
   reviewAnsweredState = new Array(reviewOrder.length).fill(null);
@@ -709,6 +714,7 @@ function startFullWrongReview() {
 
 function startReviewFromWrongList(startId) {
   const rest = shuffle(Array.from(wrongPoolIds).filter(id => id !== startId));
+  reviewMode = 'wrongpool';
   reviewOrder = [startId, ...rest];
   reviewIndex = 0;
   reviewAnsweredState = new Array(reviewOrder.length).fill(null);
@@ -741,26 +747,68 @@ function commitReviewResults() {
   saveState();
 }
 
-// Restart the SAME review batch (same original CAUSAI1 snapshot) from
-// scratch, discarding any in-progress correct marks — nothing is removed
-// from wrongPoolIds since we never committed them.
+// Restart the SAME review batch (same original snapshot) from scratch,
+// discarding any in-progress correct marks.
 function restartCurrentReview() {
-  if (!confirm('Bắt đầu lại toàn bộ danh sách câu sai này từ đầu (bao gồm cả các câu bạn vừa làm đúng trong lượt này)?')) return;
+  if (!confirm('Bắt đầu lại toàn bộ danh sách này từ đầu (bao gồm cả các câu bạn vừa làm đúng trong lượt này)?')) return;
   reviewIndex = 0;
   reviewAnsweredState = new Array(reviewOrder.length).fill(null);
   renderWrongReview();
 }
 
 function exitReviewToList() {
-  commitReviewResults();
-  screen = 'wronglist';
+  if (reviewMode === 'wrongpool') commitReviewResults();
+  screen = (reviewMode === 'word') ? 'leaderboard' : 'wronglist';
   render();
 }
 
 function exitReviewToHome() {
-  commitReviewResults();
+  if (reviewMode === 'wrongpool') commitReviewResults();
   screen = 'quiz';
   render();
+}
+
+// ---------------- Mistake leaderboard (cumulative, never decreases) ----------------
+function incrementMistakeCount(item) {
+  const key = item.infinitive || item.correct;
+  if (!key) return;
+  mistakeCounts[key] = (mistakeCounts[key] || 0) + 1;
+}
+
+function openLeaderboard() {
+  screen = 'leaderboard';
+  render();
+}
+
+function startWordReview(word) {
+  const pool = allItems.filter(it => it.infinitive === word).map(it => it.id);
+  if (pool.length === 0) return;
+  reviewMode = 'word';
+  reviewOrder = shuffle(pool);
+  reviewIndex = 0;
+  reviewAnsweredState = new Array(reviewOrder.length).fill(null);
+  screen = 'wrongreview';
+  render();
+}
+
+function renderLeaderboard() {
+  const entries = Object.entries(mistakeCounts).sort((a, b) => b[1] - a[1]).slice(0, 50);
+  let bodyHtml;
+  if (entries.length === 0) {
+    bodyHtml = `<div class="empty-state">Chưa có dữ liệu — cứ làm bài, hệ thống sẽ tự ghi nhận từ hay sai nhất của bạn ở đây! 💪</div>`;
+  } else {
+    bodyHtml = entries.map(([word, count], idx) => `
+      <div class="wrong-list-item" onclick="startWordReview('${word.replace(/'/g, "\\'")}')">
+        <div class="q-text">#${idx + 1} — <b>${escapeHtml(word)}</b></div>
+        <div class="ans-text">${count} lần sai</div>
+      </div>`).join('');
+  }
+  appEl.innerHTML = `
+    <div class="wronglist-header">
+      <button class="small-btn" onclick="backToMainQuiz()">🏠 Home</button>
+    </div>
+    <h2 style="font-size:16px;margin:0 0 14px;">🏆 Từ hay sai nhất</h2>
+    ${bodyHtml}`;
 }
 
 function wrongListHeaderHtml() {
@@ -771,10 +819,11 @@ function wrongListHeaderHtml() {
 }
 
 function wrongReviewHeaderHtml() {
+  const backLabel = reviewMode === 'word' ? '← Bảng xếp hạng' : '← Danh sách';
   return `
     <div class="wronglist-header">
       <button class="small-btn" onclick="exitReviewToHome()">🏠 Home</button>
-      <button class="small-btn" onclick="exitReviewToList()">← Danh sách</button>
+      <button class="small-btn" onclick="exitReviewToList()">${backLabel}</button>
       <button class="small-btn" onclick="restartCurrentReview()">🔄 Start over</button>
     </div>`;
 }
@@ -785,6 +834,7 @@ function render() {
   if (screen === 'quiz') return renderQuiz();
   if (screen === 'wronglist') return renderWrongList();
   if (screen === 'wrongreview') return renderWrongReview();
+  if (screen === 'leaderboard') return renderLeaderboard();
   if (screen === 'result') return renderResult();
 }
 
@@ -836,6 +886,7 @@ function topbarHtml() {
     <div class="subbar">
       <span class="mastered-badge">Đã thuộc: ${masteredIds.size}/${allItems.length}</span>
       ${wrongPoolIds.size > 0 ? `<button class="wronglist-btn" onclick="openWrongList()">📋 Câu sai (${wrongPoolIds.size})</button>` : ''}
+      <button class="wronglist-btn" style="background:#fff3d6;color:#b8860b;" onclick="openLeaderboard()">🏆 Từ hay sai</button>
       <button class="wronglist-btn" style="background:#eef4ff;color:var(--blue-dark);" onclick="startOverConfirm()">🔄 Start over</button>
     </div>`;
 }
@@ -927,6 +978,7 @@ function selectMainOption(idx, optionIndex) {
     wrongCount++;
     masteredIds.delete(id);
     wrongPoolIds.add(id);
+    incrementMistakeCount(item);
   }
   handleAnswerResult(isCorrect);
   saveState();
@@ -1014,15 +1066,17 @@ function selectReviewOption(idx, optionIndex) {
   const isCorrect = item.options[optionIndex] === item.correct;
   reviewAnsweredState[idx] = { selectedIndex: optionIndex, isCorrect };
 
-  // Note: we intentionally do NOT touch wrongPoolIds here. Correct answers
-  // are only "marked" via reviewAnsweredState; the actual removal from
-  // wrongPoolIds happens in commitReviewResults(), which runs when the
-  // user leaves this review batch (Home / Danh sách / finishing normally).
-  // This lets "Start over" restore the exact original CAUSAI1 list.
   if (isCorrect) {
     masteredIds.add(id);
+    // In word-leaderboard practice, items may not already be in wrongPoolIds,
+    // so update it immediately. In wrongpool review, deletion is deferred to
+    // commitReviewResults() (see note there) so "Start over" can restore the
+    // original list.
+    if (reviewMode === 'word') wrongPoolIds.delete(id);
   } else {
     masteredIds.delete(id);
+    if (reviewMode === 'word') wrongPoolIds.add(id);
+    incrementMistakeCount(item);
   }
   handleAnswerResult(isCorrect);
   saveState();
