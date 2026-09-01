@@ -244,8 +244,9 @@
   .options { display: flex; flex-direction: column; gap: 9px; }
   .option-btn {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 10px;
+    gap: 4px 10px;
     width: 100%;
     text-align: left;
     padding: 11px 12px;
@@ -263,6 +264,25 @@
     min-width: 0;
   }
   .option-btn span:last-child { min-width: 0; overflow-wrap: break-word; }
+  .option-word {
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: break-word;
+  }
+  .option-meaning {
+    flex-shrink: 0;
+    margin-left: auto;
+    padding-left: 10px;
+    text-align: right;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-style: italic;
+    font-weight: 400;
+    font-size: 12px;
+    color: #888;
+    max-width: 42%;
+  }
+  .option-btn.correct .option-meaning { color: var(--green-dark); }
+  .option-btn.wrong .option-meaning { color: var(--red-dark); }
   .option-btn .letter {
     display: inline-flex;
     align-items: center;
@@ -602,19 +622,26 @@ function loadData() {
     .then(csvText => {
       const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
       allItems = parsed.data.map(row => {
-        const opts = [row.optionA, row.optionB, row.optionC, row.optionD]
-          .map(o => (o || '').trim())
-          .filter(o => o.length > 0);
+        const rawOptions = [
+          { word: row.optionA, meaning: row.optionA_meaning },
+          { word: row.optionB, meaning: row.optionB_meaning },
+          { word: row.optionC, meaning: row.optionC_meaning },
+          { word: row.optionD, meaning: row.optionD_meaning },
+        ].filter(o => (o.word || '').trim().length > 0);
+        const opts = rawOptions.map(o => o.word.trim());
+        const optMeanings = rawOptions.map(o => (o.meaning || '').trim());
         return {
           id: row.id,
           grammarType: row.grammarType || '',
           group: row.group || '',
           sentence: row.sentence || '',
           options: opts,
+          optionMeanings: optMeanings,
           correct: (row.correct || '').trim(),
           infinitive: row.infinitive || '',
           preteritum: row.preteritum || '',
           meaning: row.meaning || '',
+          answerMeaning: row.answerMeaning || '',
           translation: row.translation || '',
           synonym: row.synonym || '',
           antonym: row.antonym || '',
@@ -903,8 +930,10 @@ function optionsHtml(item, state, onClickFnName, idx) {
       else cls += ' dim';
     }
     const onclick = state ? '' : `onclick="${onClickFnName}(${idx}, ${i})"`;
+    const meaningText = (state && item.optionMeanings && item.optionMeanings[i])
+      ? `<span class="option-meaning">${escapeHtml(item.optionMeanings[i])}</span>` : '';
     return `<button class="${cls}" ${disabled} ${onclick}>
-      <span class="letter">${letters[i]}</span><span>${escapeHtml(opt)}</span>
+      <span class="letter">${letters[i]}</span><span class="option-word">${escapeHtml(opt)}</span>${meaningText}
     </button>`;
   }).join('');
 }
