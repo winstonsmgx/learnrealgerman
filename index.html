@@ -97,6 +97,38 @@
     100% { transform: translate(-50%, -50%) scale(0.85); opacity: 0; }
   }
 
+  .home-screen { padding: 8px 2px; }
+  .home-title {
+    font-size: 19px;
+    font-weight: 800;
+    text-align: center;
+    margin: 4px 0 20px;
+    color: var(--text);
+  }
+  .category-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .category-btn {
+    background: white;
+    border: 2px solid var(--gray-border);
+    border-bottom-width: 4px;
+    border-radius: 14px;
+    padding: 16px 10px;
+    text-align: center;
+    cursor: pointer;
+    font-family: inherit;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+  .category-btn:active { transform: translateY(1px); border-bottom-width: 2px; }
+  .category-btn.active { border-color: var(--green); background: #f3fff0; }
+  .category-label { font-size: 14px; font-weight: 800; color: var(--text); }
+  .category-count { font-size: 12px; color: #999; font-weight: 600; }
+
   .center-screen {
     display: flex;
     flex-direction: column;
@@ -443,7 +475,7 @@
 </head>
 <body>
 <div class="top-nav-bar">
-  <button class="top-nav-btn" onclick="backToMainQuiz()">🏠 Home</button>
+  <button class="top-nav-btn" onclick="goToHome()">🏠 Home</button>
   <button class="top-nav-btn" id="muteToggle" onclick="toggleMute()">🔊 Audio</button>
 </div>
 <div class="app">
@@ -480,6 +512,7 @@ let reviewMode = 'wrongpool'; // 'wrongpool' | 'word'
 let mistakeCounts = {}; // word (infinitive) -> cumulative wrong-answer count, never decreases
 
 let screen = 'loading';
+let activeFilterType = 'all';
 let lastError = null;
 
 // ---------------- Sound effects ----------------
@@ -654,7 +687,7 @@ function loadData() {
       if (allItems.length === 0) throw new Error('Không có dữ liệu hợp lệ');
 
       initSessionFromStorageOrNew();
-      screen = 'quiz';
+      screen = 'home';
       render();
     })
     .catch(err => {
@@ -672,6 +705,7 @@ function saveState() {
       masteredIds: Array.from(masteredIds),
       wrongPoolIds: Array.from(wrongPoolIds),
       mistakeCounts,
+      activeFilterType,
       updatedAt: Date.now(),
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -697,13 +731,21 @@ function initSessionFromStorageOrNew() {
     masteredIds = new Set((saved.masteredIds || []).filter(id => itemsById[id]));
     wrongPoolIds = new Set((saved.wrongPoolIds || []).filter(id => itemsById[id]));
     mistakeCounts = saved.mistakeCounts || {};
+    activeFilterType = saved.activeFilterType || 'all';
   } else {
-    startNewMainSession(false);
+    startNewMainSession(false, 'all');
   }
 }
 
-function startNewMainSession(resetKnowledge) {
-  order = shuffle(allItems.map(it => it.id));
+function getFilteredPool(filterType) {
+  if (!filterType || filterType === 'all') return allItems;
+  return allItems.filter(it => it.grammarType === filterType);
+}
+
+function startNewMainSession(resetKnowledge, filterType) {
+  if (filterType !== undefined) activeFilterType = filterType;
+  const pool = getFilteredPool(activeFilterType);
+  order = shuffle(pool.map(it => it.id));
   currentIndex = 0;
   correctCount = 0;
   wrongCount = 0;
@@ -749,8 +791,13 @@ function startReviewFromWrongList(startId) {
   render();
 }
 
-function backToMainQuiz() {
+function resumeMainQuiz() {
   screen = 'quiz';
+  render();
+}
+
+function goToHome() {
+  screen = 'home';
   render();
 }
 
@@ -832,7 +879,7 @@ function renderLeaderboard() {
   }
   appEl.innerHTML = `
     <div class="wronglist-header">
-      <button class="small-btn" onclick="backToMainQuiz()">🏠 Home</button>
+      <button class="small-btn" onclick="resumeMainQuiz()">▶️ Tiếp tục</button>
     </div>
     <h2 style="font-size:16px;margin:0 0 14px;">🏆 Từ hay sai nhất</h2>
     ${bodyHtml}`;
@@ -841,7 +888,7 @@ function renderLeaderboard() {
 function wrongListHeaderHtml() {
   return `
     <div class="wronglist-header">
-      <button class="small-btn" onclick="backToMainQuiz()">🏠 Home</button>
+      <button class="small-btn" onclick="resumeMainQuiz()">▶️ Tiếp tục</button>
     </div>`;
 }
 
@@ -849,7 +896,7 @@ function wrongReviewHeaderHtml() {
   const backLabel = reviewMode === 'word' ? '← Bảng xếp hạng' : '← Danh sách';
   return `
     <div class="wronglist-header">
-      <button class="small-btn" onclick="exitReviewToHome()">🏠 Home</button>
+      <button class="small-btn" onclick="exitReviewToHome()">▶️ Tiếp tục</button>
       <button class="small-btn" onclick="exitReviewToList()">${backLabel}</button>
       <button class="small-btn" onclick="restartCurrentReview()">🔄 Start over</button>
     </div>`;
@@ -858,11 +905,63 @@ function wrongReviewHeaderHtml() {
 function render() {
   if (screen === 'loading') return renderLoading();
   if (screen === 'error') return renderError();
+  if (screen === 'home') return renderHome();
   if (screen === 'quiz') return renderQuiz();
   if (screen === 'wronglist') return renderWrongList();
   if (screen === 'wrongreview') return renderWrongReview();
   if (screen === 'leaderboard') return renderLeaderboard();
   if (screen === 'result') return renderResult();
+}
+
+const CATEGORY_LABELS = {
+  'all': '🎯 Tất cả',
+  'Perfekt (Partizip II)': 'Perfekt (Partizip II)',
+  'Präsens': 'Präsens',
+  'Präteritum': 'Präteritum',
+  'Futur I': 'Futur I',
+  'Präsens Passiv': 'Passiv (Präsens)',
+  'Präteritum Passiv': 'Passiv (Präteritum)',
+  'Infinitiv mit zu': 'Infinitiv mit zu',
+  'dass-Satz': 'dass-Satz',
+  'W-Kompositum': 'W-Kompositum',
+  'je...desto': 'je...desto',
+  'Đồng nghĩa': 'Đồng nghĩa',
+  'Trái nghĩa': 'Trái nghĩa',
+};
+const CATEGORY_ORDER = ['all', 'Perfekt (Partizip II)', 'Đồng nghĩa', 'Trái nghĩa',
+  'Präteritum', 'Präsens', 'Futur I', 'Präsens Passiv', 'Präteritum Passiv',
+  'Infinitiv mit zu', 'dass-Satz', 'W-Kompositum', 'je...desto'];
+
+function renderHome() {
+  const counts = { all: allItems.length };
+  allItems.forEach(it => { counts[it.grammarType] = (counts[it.grammarType] || 0) + 1; });
+
+  const hasResumable = order.length > 0 && answeredState.some(s => s) && currentIndex < order.length;
+  const resumeLabel = CATEGORY_LABELS[activeFilterType] || activeFilterType;
+
+  const cardsHtml = CATEGORY_ORDER
+    .filter(key => counts[key])
+    .map(key => `
+      <button class="category-btn ${key === activeFilterType ? 'active' : ''}" onclick="selectCategory('${key}')">
+        <div class="category-label">${escapeHtml(CATEGORY_LABELS[key] || key)}</div>
+        <div class="category-count">${counts[key]} câu</div>
+      </button>`).join('');
+
+  appEl.innerHTML = `
+    <div class="home-screen">
+      <h1 class="home-title">Chọn dạng bài luyện tập</h1>
+      ${hasResumable ? `
+        <button class="continue-btn show" style="width:100%;margin-bottom:18px;" onclick="resumeMainQuiz()">
+          ▶️ Tiếp tục "${escapeHtml(resumeLabel)}" — câu ${currentIndex + 1}/${order.length}
+        </button>` : ''}
+      <div class="category-grid">${cardsHtml}</div>
+    </div>`;
+}
+
+function selectCategory(key) {
+  startNewMainSession(false, key);
+  screen = 'quiz';
+  render();
 }
 
 function getLoadingMessage() {
@@ -1137,6 +1236,7 @@ function renderResult() {
   else if (pct >= 50) { emoji = '👍'; title = 'Khá ổn!'; }
 
   const wrongN = wrongPoolIds.size;
+  const poolSize = getFilteredPool(activeFilterType).length;
 
   appEl.innerHTML = `
     <div class="result-screen show">
@@ -1151,8 +1251,9 @@ function renderResult() {
         <button class="retry-wrong-btn" ${wrongN === 0 ? 'disabled' : ''} onclick="openWrongList()">
           ${wrongN === 0 ? 'Không có câu sai để ôn 🎉' : 'Ôn lại ' + wrongN + ' câu sai'}
         </button>
-        <button class="restart-btn" onclick="startNewMainSession(false); screen='quiz'; render();">Làm lại toàn bộ ${allItems.length} câu</button>
+        <button class="restart-btn" onclick="startNewMainSession(false); screen='quiz'; render();">Làm lại toàn bộ ${poolSize} câu</button>
       </div>
+      <button class="reset-all-link" onclick="goToHome()">🏠 Chọn dạng bài khác</button>
       <button class="reset-all-link" onclick="resetEverything()">Xoá toàn bộ tiến trình & bắt đầu lại từ đầu</button>
     </div>`;
 }
